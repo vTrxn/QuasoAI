@@ -5,8 +5,9 @@ from typing import List
 from pydantic import BaseModel
 import database
 import ai_service
+import auth
 
-app = FastAPI(title="Smart Analytics SaaS API")
+app = FastAPI(title="Quaso: Data Intelligence Platform API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -62,18 +63,19 @@ def process_ai_analysis(component_name: str, current_price: float, db: Session):
     history = db.query(database.HardwareData).filter(database.HardwareData.component_name == component_name).order_by(database.HardwareData.scraped_at.desc()).limit(5).all()
     history_prices = [h.price for h in history]
     
-    result = ai_service.analyze_price_trend(component_name, current_price, history_prices)
+    result = ai_service.analyze_data(component_name, current_price, history_prices)
     
     analysis = database.AIAnalysis(
         component_name=component_name,
         analysis_text=result["analysis_text"],
-        sentiment=result["sentiment"]
+        sentiment=result["sentiment"],
+        recommendation=result.get("recommendation")
     )
     db.add(analysis)
     db.commit()
 
 @app.get("/api/hardware", response_model=List[HardwareDataOut])
-def get_hardware_data(db: Session = Depends(get_db)):
+def get_hardware_data(db: Session = Depends(get_db), current_user: dict = Depends(auth.get_current_user)):
     """Get all hardware data for dashboard"""
     items = db.query(database.HardwareData).order_by(database.HardwareData.scraped_at.desc()).limit(100).all()
     # Convert datetime to string for Pydantic
@@ -82,7 +84,7 @@ def get_hardware_data(db: Session = Depends(get_db)):
     return items
 
 @app.get("/api/analysis")
-def get_ai_analysis(db: Session = Depends(get_db)):
+def get_ai_analysis(db: Session = Depends(get_db), current_user: dict = Depends(auth.get_current_user)):
     """Get latest AI analysis for dashboard"""
     items = db.query(database.AIAnalysis).order_by(database.AIAnalysis.created_at.desc()).limit(10).all()
     return items

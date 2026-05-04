@@ -1,54 +1,85 @@
 import os
+import requests
 from groq import Groq
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# We fall back to a mock if no API key is provided
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+# Configuration
+AI_PROVIDER = os.getenv("AI_PROVIDER", "groq") # groq, anthropic, or perplexity
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
+PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
 
-if GROQ_API_KEY:
+def analyze_data(component_name: str, current_value: float, history: list[float], category: str = "Hardware") -> dict:
+    prompt = f"""
+    Eres un analista experto en el mercado de {category}.
+    Analiza el valor actual de '{component_name}': {current_value}.
+    Historial reciente de valores: {history}.
+    
+    Tu tarea:
+    1. Identifica tendencias (alza, baja, estabilidad).
+    2. Detecta anomalías si las hay.
+    3. Proporciona una recomendación accionable (Comprar, Esperar, Vender).
+    
+    Formato de respuesta:
+    RESUMEN: [Tu análisis en max 3 frases]
+    SENTIMIENTO: [Positivo/Negativo/Neutral]
+    RECOMENDACION: [Acción sugerida]
+    """
+    
+    if AI_PROVIDER == "groq" and GROQ_API_KEY:
+        return _analyze_with_groq(prompt)
+    elif AI_PROVIDER == "perplexity" and PERPLEXITY_API_KEY:
+        return _analyze_with_perplexity(prompt)
+    else:
+        # Mock for development
+        return {
+            "analysis_text": f"Análisis Mock para {component_name}: La tendencia parece estable a {current_value}. Historial: {history}.",
+            "sentiment": "Neutral",
+            "recommendation": "Esperar"
+        }
+
+def _analyze_with_groq(prompt: str) -> dict:
     client = Groq(api_key=GROQ_API_KEY)
-else:
-    client = None
-
-def analyze_price_trend(component_name: str, price: float, historical_prices: list[float]) -> dict:
-    if not client:
-        return {
-            "analysis_text": f"Mock Analysis: The price of {component_name} is currently ${price}. No API key configured.",
-            "sentiment": "Neutral"
-        }
-    
-    prompt = f"Analyze the current price of {component_name} (${price}) considering these past prices: {historical_prices}. Is it a good time to buy? Keep the analysis short (max 3 sentences). Also, provide a sentiment: 'Positive' (good to buy), 'Negative' (bad to buy), or 'Neutral'."
-    
     try:
-        chat_completion = client.chat.completions.create(
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a hardware market expert. Format your response EXACTLY as: 'Analysis: [your analysis] | Sentiment: [Positive/Negative/Neutral]'"
-                },
-                {
-                    "role": "user",
-                    "content": prompt,
-                }
-            ],
-            model="llama3-8b-8192",
-            max_tokens=150
+        completion = client.chat.completions.create(
+            messages=[{"role": "user", "content": prompt}],
+            model="llama3-70b-8192",
+            max_tokens=200
         )
-        
-        response_text = chat_completion.choices[0].message.content
-        parts = response_text.split("| Sentiment:")
-        
-        analysis = parts[0].replace("Analysis:", "").strip()
-        sentiment = parts[1].strip() if len(parts) > 1 else "Neutral"
-        
-        return {
-            "analysis_text": analysis,
-            "sentiment": sentiment
-        }
+        return _parse_response(completion.choices[0].message.content)
     except Exception as e:
-        return {
-            "analysis_text": f"Error analyzing data: {str(e)}",
-            "sentiment": "Neutral"
-        }
+        return {"analysis_text": f"Error Groq: {str(e)}", "sentiment": "Neutral", "recommendation": "Error"}
+
+def _analyze_with_perplexity(prompt: str) -> dict:
+    url = "https://api.perplexity.ai/chat/completions"
+    headers = {
+        "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    payload = {
+        "model": "sonar-small-online",
+        "messages": [{"role": "user", "content": prompt}]
+    }
+    try:
+        response = requests.post(url, json=payload, headers=headers)
+        data = response.json()
+        return _parse_response(data["choices"][0]["message"]["content"])
+    except Exception as e:
+        return {"analysis_text": f"Error Perplexity: {str(e)}", "sentiment": "Neutral", "recommendation": "Error"}
+
+def _parse_response(text: str) -> dict:
+    # Simple parser for the expected format
+    res = {"analysis_text": text, "sentiment": "Neutral", "recommendation": "N/A"}
+    
+    if "SENTIMIENTO:" in text:
+        parts = text.split("SENTIMIENTO:")
+        res["analysis_text"] = parts[0].replace("RESUMEN:", "").strip()
+        
+        remaining = parts[1].split("RECOMENDACION:")
+        res["sentiment"] = remaining[0].strip()
+        if len(remaining) > 1:
+            res["recommendation"] = remaining[1].strip()
+            
+    return res
