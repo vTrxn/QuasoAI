@@ -11,7 +11,7 @@ El sistema está compuesto por cuatro pilares fundamentales, interconectados par
 3.  **Base de Datos y Autenticación (La Bóveda):** Gestión segura con **PostgreSQL** y **Supabase**, manejando la autenticación de usuarios (Auth) y el almacenamiento relacional de históricos y predicciones.
 4.  **Frontend (La Cara):** Interfaz moderna y rápida construida con **React (Vite)** y **TypeScript**. Dashboard interactivo con visualizaciones dinámicas (Recharts/Chart.js) para interpretar los datos de forma clara.
 
-## 🛠️ Tecnologías Principales
+##  Tecnologías Principales
 
 *   **Backend:** FastAPI, Python, SQLAlchemy, Groq/Claude API.
 *   **Frontend:** React, TypeScript, Vite, Tailwind CSS (o Vanilla CSS), Recharts.
