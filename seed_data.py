@@ -1,41 +1,36 @@
-import requests
-import random
-import time
-from datetime import datetime, timedelta, timezone
+import sys
+import os
 
-API_URL = "http://localhost:8000/api/webhook/ingest"
+# Añadir el path del backend para importar database
+sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 
-components = [
-    {"name": "NVIDIA RTX 4080 Super", "category": "GPU", "base_price": 1100},
-    {"name": "NVIDIA RTX 4070 Ti", "category": "GPU", "base_price": 850},
-    {"name": "AMD Radeon RX 7900 XTX", "category": "GPU", "base_price": 950},
-    {"name": "Intel Core i9-14900K", "category": "CPU", "base_price": 580},
-    {"name": "AMD Ryzen 7 7800X3D", "category": "CPU", "base_price": 380},
-]
+import database
 
-def generate_historical_data():
-    print("Generando datos históricos...")
-    for comp in components:
-        data_batch = []
-        for i in range(10, 0, -1):
-            price = comp["base_price"] * (1 + random.uniform(-0.1, 0.05))
-            
-            if i == 1 and comp["name"] == "NVIDIA RTX 4080 Super":
-                price = comp["base_price"] * 0.75 # 25% de caída
-            
-            data_batch.append({
-                "component_name": comp["name"],
-                "category": comp["category"],
-                "price": round(price, 2),
-                "store": "Tech Store Alpha",
-                "url": "https://example.com/product"
-            })
+def seed():
+    db = database.SessionLocal()
+    try:
+        # Algunos componentes de hardware
+        hardware = [
+            {"component_name": "NVIDIA RTX 4070", "category": "GPU", "price": 599.99, "store": "Amazon", "url": "https://amazon.com/rtx4070"},
+            {"component_name": "AMD Ryzen 7 7800X3D", "category": "CPU", "price": 389.00, "store": "Newegg", "url": "https://newegg.com/7800x3d"},
+            {"component_name": "Corsair Vengeance 32GB DDR5", "category": "RAM", "price": 115.50, "store": "BestBuy", "url": "https://bestbuy.com/corsair-ddr5"}
+        ]
         
-        try:
-            response = requests.post(API_URL, json=data_batch)
-            print(f"Enviados datos para {comp['name']}: {response.status_code}")
-        except Exception as e:
-            print(f"Error enviando datos para {comp['name']}: {e}")
+        # Nuevos periféricos
+        peripherals = [
+            {"component_name": "Logitech G Pro X Superlight", "category": "Periféricos", "price": 129.00, "store": "Amazon", "url": "https://amazon.com/gprox"},
+            {"component_name": "Razer Huntsman V3 Pro", "category": "Periféricos", "price": 249.99, "store": "Razer Store", "url": "https://razer.com/huntsman-v3"},
+            {"component_name": "SteelSeries Arctis Nova Pro", "category": "Periféricos", "price": 349.00, "store": "SteelSeries", "url": "https://steelseries.com/arctis-nova"}
+        ]
+        
+        for item in hardware + peripherals:
+            db_item = database.HardwareData(**item)
+            db.add(db_item)
+        
+        db.commit()
+        print("✅ Base de datos alimentada con éxito con hardware y periféricos.")
+    finally:
+        db.close()
 
 if __name__ == "__main__":
-    generate_historical_data()
+    seed()
