@@ -4,11 +4,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 from dotenv import load_dotenv
 
-load_dotenv()
+# Ignoramos el DATABASE_URL de supabase/postgres por ahora para evitar problemas de conexión locales
+SQLALCHEMY_DATABASE_URL = "sqlite:///./sql_app.db"
 
-SQLALCHEMY_DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@db:5432/quaso")
-
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False}
+)
+    
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()

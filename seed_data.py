@@ -1,7 +1,7 @@
 import requests
 import random
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 API_URL = "http://localhost:8000/api/webhook/ingest"
 
@@ -17,13 +17,9 @@ def generate_historical_data():
     print("Generando datos históricos...")
     for comp in components:
         data_batch = []
-        # Generar 10 días de datos para cada componente
         for i in range(10, 0, -1):
-            date = (datetime.utcnow() - timedelta(days=i)).isoformat()
-            # Simular fluctuación de precio
             price = comp["base_price"] * (1 + random.uniform(-0.1, 0.05))
             
-            # En el último día, forzar una caída para probar la alerta en uno de ellos
             if i == 1 and comp["name"] == "NVIDIA RTX 4080 Super":
                 price = comp["base_price"] * 0.75 # 25% de caída
             
@@ -39,7 +35,7 @@ def generate_historical_data():
             response = requests.post(API_URL, json=data_batch)
             print(f"Enviados datos para {comp['name']}: {response.status_code}")
         except Exception as e:
-            print(f"Error enviando datos: {e}")
+            print(f"Error enviando datos para {comp['name']}: {e}")
 
 if __name__ == "__main__":
     generate_historical_data()
