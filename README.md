@@ -2,7 +2,7 @@
 
 Quaso es una solución integral diseñada para la recopilación, procesamiento y visualización de datos de manera automatizada. Permite a los usuarios realizar un seguimiento de temas de interés (como precios de hardware, estadísticas de mercado o rendimiento de palabras clave) mediante flujos de trabajo inteligentes y análisis potenciados por Inteligencia Artificial.
 
-## 🚀 Arquitectura del Proyecto
+##  Arquitectura del Proyecto
 
 El sistema está compuesto por cuatro pilares fundamentales, interconectados para ofrecer una experiencia profesional y escalable:
 
@@ -19,7 +19,7 @@ El sistema está compuesto por cuatro pilares fundamentales, interconectados par
 *   **Base de Datos:** PostgreSQL (Supabase).
 *   **Infraestructura:** Docker, Docker Compose.
 
-## 📦 Instalación y Uso Local
+##  Instalación y Uso Local
 
 ### Requisitos Previos
 
@@ -36,7 +36,7 @@ chmod +x start_local.sh
 ./start_local.sh
 ```
 
-## 📂 Estructura del Repositorio
+##  Estructura del Repositorio
 
 *   `/backend`: Código fuente del servidor FastAPI y servicios de IA.
 *   `/frontend`: Aplicación cliente en React.
