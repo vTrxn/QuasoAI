@@ -1,0 +1,104 @@
+{
+  "name": "Hardware Price Scraper (Quaso)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "days"
+            }
+          ]
+        }
+      },
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://dummyjson.com/products/category/laptops",
+        "options": {}
+      },
+      "name": "Fetch Hardware Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const results = [];\n\nfor (const item of $input.first().json.products) {\n  results.push({\n    component_name: item.title,\n    category: \"Laptop\",\n    price: item.price,\n    store: \"DummyStore\",\n    url: \"https://dummyjson.com/products/\" + item.id\n  });\n}\n\nreturn results;"
+      },
+      "name": "Format Data for Quaso",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://backend:8000/api/webhook/ingest",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {}
+      },
+      "name": "Send to Quaso Webhook",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [
+        900,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Fetch Hardware Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Hardware Data": {
+      "main": [
+        [
+          {
+            "node": "Format Data for Quaso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Data for Quaso": {
+      "main": [
+        [
+          {
+            "node": "Send to Quaso Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {},
+  "staticData": null,
+  "pinData": {},
+  "versionId": "f781df55-8bc6-4e5a-8b8a-330528ef0500"
+}

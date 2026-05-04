@@ -1,5 +1,5 @@
 import os
-from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime, Boolean
 from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 from dotenv import load_dotenv
@@ -32,6 +32,7 @@ class AIAnalysis(Base):
     analysis_text = Column(String)
     sentiment = Column(String) # Positive, Negative, Neutral (e.g., price dropping is positive)
     recommendation = Column(String, nullable=True) # Buy, Wait, Sell
+    is_alert = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.utcnow)
 
 Base.metadata.create_all(bind=engine)

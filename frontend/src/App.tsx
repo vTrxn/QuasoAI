@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Monitor, TrendingDown, TrendingUp, Cpu, Activity, BrainCircuit, LogOut } from 'lucide-react';
-import { supabase } from './supabaseClient';
-import Login from './Login';
+import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { Monitor, TrendingDown, TrendingUp, Cpu, Activity, BrainCircuit } from 'lucide-react';
+import './index.css';
 import './index.css';
 
 interface HardwareData {
@@ -20,42 +19,28 @@ interface AIAnalysis {
   analysis_text: string;
   sentiment: string;
   recommendation?: string;
+  is_alert?: boolean;
   created_at: string;
 }
 
 function App() {
-  const [session, setSession] = useState<any>(null);
   const [data, setData] = useState<HardwareData[]>([]);
   const [analysis, setAnalysis] = useState<AIAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) fetchData(session.access_token);
-      else setLoading(false);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session) fetchData(session.access_token);
-      else setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    fetchData();
   }, []);
 
-  const fetchData = async (token: string) => {
+  const fetchData = async () => {
     setLoading(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const headers = {
-        'Authorization': `Bearer ${token}`
-      };
       
       const [resData, resAnalysis] = await Promise.all([
-        fetch(`${apiUrl}/api/hardware`, { headers }).then(res => res.json()).catch(() => []),
-        fetch(`${apiUrl}/api/analysis`, { headers }).then(res => res.json()).catch(() => [])
+        fetch(`${apiUrl}/api/hardware`).then(res => res.json()).catch(() => []),
+        fetch(`${apiUrl}/api/analysis`).then(res => res.json()).catch(() => [])
       ]);
       
       setData(Array.isArray(resData) ? resData : []);
@@ -67,40 +52,42 @@ function App() {
     }
   };
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-  };
-
   if (loading) return <div className="loading">Cargando Quaso Platform...</div>;
-  if (!session) return <Login onLogin={() => {}} />;
 
   const currentPrice = data.length > 0 ? data[0].price : 0;
   const previousPrice = data.length > 1 ? data[1].price : currentPrice;
   const priceDrop = previousPrice - currentPrice;
 
-  const chartData = data.length > 0 
-    ? data.slice().reverse().map(d => ({
+  const filteredData = selectedCategory === 'All' 
+    ? data 
+    : data.filter(d => d.category === selectedCategory);
+
+  const chartData = filteredData.length > 0 
+    ? filteredData.slice().reverse().map(d => ({
         name: new Date(d.scraped_at).toLocaleDateString(),
         price: d.price
       }))
     : [];
+
+  const barChartData = data.reduce((acc: any[], curr) => {
+    if (!acc.find(i => i.name === curr.component_name)) {
+      acc.push({ name: curr.component_name, price: curr.price });
+    }
+    return acc;
+  }, []).slice(0, 5); // top 5 unique components
 
   return (
     <div className="dashboard-container">
       <header className="header">
         <div>
           <h1>Quaso: Inteligencia de Datos</h1>
-          <p>Bienvenido, {session.user.email}</p>
+          <p>Bienvenido</p>
         </div>
         <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
           <span className="trend positive" style={{ backgroundColor: 'var(--panel-bg)' }}>
             <Activity size={16} style={{ marginRight: '0.5rem' }}/>
             Motor Activo
           </span>
-          <button onClick={handleLogout} className="btn btn-secondary" style={{ width: 'auto', padding: '0.5rem 1rem', marginTop: 0 }}>
-            <LogOut size={16} />
-          </button>
         </div>
       </header>
 
@@ -131,23 +118,57 @@ function App() {
             <span style={{ marginLeft: '0.25rem' }}>Registros totales</span>
           </div>
         </div>
+
+        <div className="card">
+          <div className="card-title">
+            <Monitor size={20} color="var(--accent-color)" />
+            Filtro por Categoría
+          </div>
+          <select 
+            value={selectedCategory} 
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            style={{ width: '100%', padding: '0.5rem', borderRadius: '8px', backgroundColor: 'var(--bg-color)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}
+          >
+            <option value="All">Todas las Categorías</option>
+            <option value="GPU">Tarjetas Gráficas (GPU)</option>
+            <option value="CPU">Procesadores (CPU)</option>
+          </select>
+        </div>
       </div>
 
       {chartData.length > 0 && (
-        <div className="chart-container">
-          <div className="card-title" style={{ marginBottom: '1.5rem' }}>Evolución Temporal de Precios</div>
-          <ResponsiveContainer width="100%" height="85%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
-              <XAxis dataKey="name" stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)'}} />
-              <YAxis stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)'}} domain={['auto', 'auto']} />
-              <Tooltip 
-                contentStyle={{ backgroundColor: 'var(--panel-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
-                itemStyle={{ color: 'var(--accent-color)' }}
-              />
-              <Line type="monotone" dataKey="price" stroke="var(--accent-color)" strokeWidth={3} dot={{ fill: 'var(--bg-color)', strokeWidth: 2, r: 4 }} activeDot={{ r: 8 }} />
-            </LineChart>
-          </ResponsiveContainer>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
+          <div className="chart-container" style={{ marginBottom: 0 }}>
+            <div className="card-title" style={{ marginBottom: '1.5rem' }}>Evolución Temporal de Precios</div>
+            <ResponsiveContainer width="100%" height="85%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)'}} />
+                <YAxis stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)'}} domain={['auto', 'auto']} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--panel-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                  itemStyle={{ color: 'var(--accent-color)' }}
+                />
+                <Line type="monotone" dataKey="price" stroke="var(--accent-color)" strokeWidth={3} dot={{ fill: 'var(--bg-color)', strokeWidth: 2, r: 4 }} activeDot={{ r: 8 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+          
+          <div className="chart-container" style={{ marginBottom: 0 }}>
+            <div className="card-title" style={{ marginBottom: '1.5rem' }}>Comparativa Actual (Top 5)</div>
+            <ResponsiveContainer width="100%" height="85%">
+              <BarChart data={barChartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                <XAxis dataKey="name" stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)'}} />
+                <YAxis stroke="var(--text-secondary)" tick={{fill: 'var(--text-secondary)'}} />
+                <Tooltip 
+                  contentStyle={{ backgroundColor: 'var(--panel-bg)', borderColor: 'var(--border-color)', color: 'var(--text-primary)' }}
+                  itemStyle={{ color: 'var(--accent-color)' }}
+                />
+                <Bar dataKey="price" fill="var(--accent-color)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       )}
 
@@ -161,7 +182,10 @@ function App() {
           analysis.map((item, idx) => (
             <div key={idx} className="analysis-item">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                <p style={{ fontWeight: 600, marginBottom: '0.5rem' }}>{item.component_name}</p>
+                <p style={{ fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {item.component_name} 
+                  {item.is_alert && <span style={{ backgroundColor: 'var(--danger)', color: 'white', padding: '0.1rem 0.4rem', borderRadius: '4px', fontSize: '0.75rem' }}>Alerta de Precio</span>}
+                </p>
                 <span className={`trend ${item.sentiment === 'Positivo' ? 'positive' : item.sentiment === 'Negativo' ? 'negative' : 'neutral'}`}>
                   {item.sentiment}
                 </span>

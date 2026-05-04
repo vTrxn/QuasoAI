@@ -18,12 +18,13 @@ def analyze_data(component_name: str, current_value: float, history: list[float]
     Historial reciente de valores: {history}.
     
     Tu tarea:
-    1. Identifica tendencias (alza, baja, estabilidad).
-    2. Detecta anomalías si las hay.
-    3. Proporciona una recomendación accionable (Comprar, Esperar, Vender).
+    1. Identifica tendencias (alza, baja, estabilidad) del componente.
+    2. Si conoces componentes similares o de la competencia, realiza una breve comparación de valor (ej. vs AMD o Nvidia).
+    3. Detecta anomalías si las hay.
+    4. Proporciona una recomendación accionable (Comprar, Esperar, Vender).
     
     Formato de respuesta:
-    RESUMEN: [Tu análisis en max 3 frases]
+    RESUMEN: [Tu análisis comparativo en max 3 frases]
     SENTIMIENTO: [Positivo/Negativo/Neutral]
     RECOMENDACION: [Acción sugerida]
     """

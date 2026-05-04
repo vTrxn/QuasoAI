@@ -6,6 +6,10 @@ from pydantic import BaseModel
 import database
 import ai_service
 import auth
+import requests
+
+# URL del webhook de n8n para notificaciones
+NOTIFICATION_WEBHOOK_URL = os.getenv("NOTIFICATION_WEBHOOK_URL")
 
 app = FastAPI(title="Quaso: Data Intelligence Platform API")
 
@@ -41,7 +45,7 @@ class HardwareDataOut(HardwareDataIn):
 
 @app.get("/")
 def read_root():
-    return {"status": "ok", "message": "Smart Analytics SaaS API is running"}
+    return {"status": "ok", "message": "Quaso API is running"}
 
 @app.post("/api/webhook/ingest")
 def ingest_data(data: List[HardwareDataIn], background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
@@ -63,19 +67,42 @@ def process_ai_analysis(component_name: str, current_price: float, db: Session):
     history = db.query(database.HardwareData).filter(database.HardwareData.component_name == component_name).order_by(database.HardwareData.scraped_at.desc()).limit(5).all()
     history_prices = [h.price for h in history]
     
+    is_alert = False
+    if len(history_prices) > 1:
+        previous_price = history_prices[1]
+        if previous_price > 0:
+            drop_percentage = ((previous_price - current_price) / previous_price) * 100
+            if drop_percentage > 15:
+                is_alert = True
+                
     result = ai_service.analyze_data(component_name, current_price, history_prices)
     
     analysis = database.AIAnalysis(
         component_name=component_name,
         analysis_text=result["analysis_text"],
         sentiment=result["sentiment"],
-        recommendation=result.get("recommendation")
+        recommendation=result.get("recommendation"),
+        is_alert=is_alert
     )
     db.add(analysis)
     db.commit()
 
+    # Si hay una alerta, notificar vía n8n
+    if is_alert and NOTIFICATION_WEBHOOK_URL:
+        try:
+            payload = {
+                "event": "price_alert",
+                "component": component_name,
+                "price": current_price,
+                "analysis": result["analysis_text"],
+                "recommendation": result.get("recommendation")
+            }
+            requests.post(NOTIFICATION_WEBHOOK_URL, json=payload)
+        except Exception as e:
+            print(f"Error enviando notificación: {e}")
+
 @app.get("/api/hardware", response_model=List[HardwareDataOut])
-def get_hardware_data(db: Session = Depends(get_db), current_user: dict = Depends(auth.get_current_user)):
+def get_hardware_data(db: Session = Depends(get_db)):
     """Get all hardware data for dashboard"""
     items = db.query(database.HardwareData).order_by(database.HardwareData.scraped_at.desc()).limit(100).all()
     # Convert datetime to string for Pydantic
@@ -84,7 +111,7 @@ def get_hardware_data(db: Session = Depends(get_db), current_user: dict = Depend
     return items
 
 @app.get("/api/analysis")
-def get_ai_analysis(db: Session = Depends(get_db), current_user: dict = Depends(auth.get_current_user)):
+def get_ai_analysis(db: Session = Depends(get_db)):
     """Get latest AI analysis for dashboard"""
     items = db.query(database.AIAnalysis).order_by(database.AIAnalysis.created_at.desc()).limit(10).all()
     return items

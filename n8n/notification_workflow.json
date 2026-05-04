@@ -1,0 +1,51 @@
+{
+  "name": "Quaso Notifications (Alerts to Discord)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "quaso-alerts",
+        "options": {}
+      },
+      "name": "Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        100,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "content": "=🚨 **¡ALERTA DE PRECIO EN QUASO!** 🚨\n\n**Componente:** {{ $json.body.component }}\n**Precio Actual:** ${{ $json.body.price }}\n**Análisis:** {{ $json.body.analysis }}\n**Recomendación:** {{ $json.body.recommendation }}\n\n[Ir al Dashboard](http://localhost:5173)",
+        "options": {}
+      },
+      "name": "Discord Webhook",
+      "type": "n8n-nodes-base.discord",
+      "typeVersion": 1,
+      "position": [
+        400,
+        300
+      ],
+      "credentials": {
+        "discordWebhook": {
+          "id": "YOUR_DISCORD_WEBHOOK_ID",
+          "name": "Quaso Bot"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Discord Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
